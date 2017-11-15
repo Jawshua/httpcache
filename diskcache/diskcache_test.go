@@ -40,3 +40,41 @@ func TestDiskCache(t *testing.T) {
 		t.Fatal("deleted key still present")
 	}
 }
+
+func TestDiskCacheStreaming(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "httpcache")
+	if err != nil {
+		t.Fatalf("TempDir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	cache := New(tempDir)
+
+	key := "testKey2"
+	_, ok := cache.GetStream(key)
+	if ok {
+		t.Fatal("retrieved key before adding it")
+	}
+
+	val := []byte("some bytes")
+	writer := cache.SetStream(key)
+	writer.Write(val)
+	writer.Close()
+
+	reader, ok := cache.GetStream(key)
+	if !ok {
+		t.Fatal("could not retrieve an element we just added")
+	}
+
+	retVal, _ := ioutil.ReadAll(reader)
+	if !bytes.Equal(retVal, val) {
+		t.Fatal("retrieved a different value than what we put in")
+	}
+
+	cache.Delete(key)
+
+	_, ok = cache.GetStream(key)
+	if ok {
+		t.Fatal("deleted key still present")
+	}
+}

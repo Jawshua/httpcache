@@ -26,10 +26,29 @@ func (c *Cache) Get(key string) (resp []byte, ok bool) {
 	return resp, true
 }
 
+// GetStream returns the a stream containing the response corresponding to key if present
+func (c *Cache) GetStream(key string) (resp io.Reader, ok bool) {
+	key = keyToFilename(key)
+	resp, err := c.d.ReadStream(key, true)
+	if err != nil {
+		return nil, false
+	}
+	return resp, true
+}
+
 // Set saves a response to the cache as key
 func (c *Cache) Set(key string, resp []byte) {
 	key = keyToFilename(key)
 	c.d.WriteStream(key, bytes.NewReader(resp), true)
+}
+
+// SetStream returns an io.WriteCloser. Data written
+// to the stream will be committed on close.
+func (c *Cache) SetStream(key string) io.WriteCloser {
+	reader, writer := io.Pipe()
+	key = keyToFilename(key)
+	go c.d.WriteStream(key, reader, true)
+	return writer
 }
 
 // Delete removes the response with key from the cache

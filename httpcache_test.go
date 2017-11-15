@@ -417,7 +417,7 @@ func TestGetOnlyIfCachedHit(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+
 		if resp.Header.Get(XFromCache) != "" {
 			t.Fatal("XFromCache header isn't blank")
 		}
@@ -425,6 +425,8 @@ func TestGetOnlyIfCachedHit(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		resp.Body.Close()
 	}
 	{
 		req, err := http.NewRequest("GET", s.server.URL, nil)
@@ -534,7 +536,6 @@ func TestGetWithEtag(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
 		if resp.Header.Get(XFromCache) != "" {
 			t.Fatal("XFromCache header isn't blank")
 		}
@@ -542,7 +543,7 @@ func TestGetWithEtag(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-
+		resp.Body.Close()
 	}
 	{
 		resp, err := s.client.Do(req)
@@ -574,7 +575,7 @@ func TestGetWithLastModified(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+
 		if resp.Header.Get(XFromCache) != "" {
 			t.Fatal("XFromCache header isn't blank")
 		}
@@ -582,6 +583,8 @@ func TestGetWithLastModified(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		resp.Body.Close()
 	}
 	{
 		resp, err := s.client.Do(req)
@@ -607,7 +610,6 @@ func TestGetWithVary(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
 		if resp.Header.Get("Vary") != "Accept" {
 			t.Fatalf(`Vary header isn't "Accept": %v`, resp.Header.Get("Vary"))
 		}
@@ -615,6 +617,7 @@ func TestGetWithVary(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		resp.Body.Close()
 	}
 	{
 		resp, err := s.client.Do(req)
@@ -663,7 +666,7 @@ func TestGetWithDoubleVary(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+
 		if resp.Header.Get("Vary") == "" {
 			t.Fatalf(`Vary header is blank`)
 		}
@@ -671,6 +674,7 @@ func TestGetWithDoubleVary(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		resp.Body.Close()
 	}
 	{
 		resp, err := s.client.Do(req)
@@ -725,7 +729,7 @@ func TestGetWith2VaryHeaders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+
 		if resp.Header.Get("Vary") == "" {
 			t.Fatalf(`Vary header is blank`)
 		}
@@ -733,16 +737,23 @@ func TestGetWith2VaryHeaders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		resp.Body.Close()
 	}
 	{
 		resp, err := s.client.Do(req)
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+
 		if resp.Header.Get(XFromCache) != "1" {
 			t.Fatalf(`XFromCache header isn't "1": %v`, resp.Header.Get(XFromCache))
 		}
+
+		_, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
 	}
 	req.Header.Set("Accept-Language", "")
 	{
@@ -750,10 +761,15 @@ func TestGetWith2VaryHeaders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+
 		if resp.Header.Get(XFromCache) != "" {
 			t.Fatal("XFromCache header isn't blank")
 		}
+		_, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
 	}
 	req.Header.Set("Accept-Language", "da")
 	{
@@ -761,9 +777,14 @@ func TestGetWith2VaryHeaders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+
 		if resp.Header.Get(XFromCache) != "" {
 			t.Fatal("XFromCache header isn't blank")
+			_, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resp.Body.Close()
 		}
 	}
 	req.Header.Set("Accept-Language", acceptLanguage)
@@ -773,18 +794,7 @@ func TestGetWith2VaryHeaders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
-		if resp.Header.Get(XFromCache) != "" {
-			t.Fatal("XFromCache header isn't blank")
-		}
-	}
-	req.Header.Set("Accept", "image/png")
-	{
-		resp, err := s.client.Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer resp.Body.Close()
+
 		if resp.Header.Get(XFromCache) != "" {
 			t.Fatal("XFromCache header isn't blank")
 		}
@@ -792,16 +802,42 @@ func TestGetWith2VaryHeaders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		resp.Body.Close()
+	}
+	req.Header.Set("Accept", "image/png")
+	{
+		resp, err := s.client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if resp.Header.Get(XFromCache) != "" {
+			t.Fatal("XFromCache header isn't blank")
+		}
+		_, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
 	}
 	{
 		resp, err := s.client.Do(req)
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+
 		if resp.Header.Get(XFromCache) != "1" {
 			t.Fatalf(`XFromCache header isn't "1": %v`, resp.Header.Get(XFromCache))
 		}
+		_, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
 	}
 }
 
@@ -817,7 +853,6 @@ func TestGetVaryUnused(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
 		if resp.Header.Get("Vary") == "" {
 			t.Fatalf(`Vary header is blank`)
 		}
@@ -825,6 +860,7 @@ func TestGetVaryUnused(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		resp.Body.Close()
 	}
 	{
 		resp, err := s.client.Do(req)
@@ -850,12 +886,14 @@ func TestUpdateFields(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer resp.Body.Close()
+
 		counter = resp.Header.Get("x-counter")
 		_, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		resp.Body.Close()
 	}
 	{
 		resp, err := s.client.Do(req)
@@ -1184,6 +1222,7 @@ func TestStaleIfErrorRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	resp.Body.Close()
 
 	// On failure, response is returned from the cache
 	tmock.response = nil
@@ -1229,6 +1268,7 @@ func TestStaleIfErrorRequestLifetime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	resp.Body.Close()
 
 	// On failure, response is returned from the cache
 	tmock.response = nil
@@ -1291,6 +1331,7 @@ func TestStaleIfErrorResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	resp.Body.Close()
 
 	// On failure, response is returned from the cache
 	tmock.response = nil
@@ -1335,6 +1376,7 @@ func TestStaleIfErrorResponseLifetime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	resp.Body.Close()
 
 	// On failure, response is returned from the cache
 	tmock.response = nil

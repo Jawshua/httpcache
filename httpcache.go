@@ -588,6 +588,56 @@ func (r *cachingReadCloser) Close() error {
 	return r.R.Close()
 }
 
+type deferredWriteCloserCallback func() io.WriteCloser
+
+// DeferredTeeReadCloser returns a ReadCloser that writes to an
+// io.WriteCloser what it reads from r. Initialization of the
+// io.WriteCloser is handled by the deferred callback w which is
+// invoked during the first Read call. Upon initialization, any
+// preamble bytes are written to the io.WriteCloser, followed by
+// the data read from r.
+// Subsequent reads from r performed through it are matched with
+// corresponding writes to the io.WriteCloser. There is no internal
+// buffering - the write must complete before the read completes.
+// Any error encountered while writing is reported as a read error.
+func DeferredTeeReadCloser(r io.ReadCloser, w deferredWriteCloserCallback, preamble []byte) io.ReadCloser {
+	return &deferredTeeReadCloser{r, nil, w, preamble}
+}
+
+type deferredTeeReadCloser struct {
+	r io.ReadCloser
+	w io.WriteCloser
+
+	callback deferredWriteCloserCallback
+	preamble []byte
+}
+
+func (t *deferredTeeReadCloser) Read(p []byte) (n int, err error) {
+	// If the writer isn't initialized then do it now and copy the deferred preamble
+	if t.w == nil {
+		t.w = t.callback()
+		preader := bytes.NewReader(t.preamble)
+		io.Copy(t.w, preader)
+	}
+
+	n, err = t.r.Read(p)
+	if n > 0 {
+		if n, err := t.w.Write(p[:n]); err != nil {
+			return n, err
+		}
+	}
+	return
+}
+
+func (t *deferredTeeReadCloser) Close() (err error) {
+	t.r.Close()
+	if t.w != nil {
+		t.w.Close()
+	}
+
+	return nil
+}
+
 // NewMemoryCacheTransport returns a new Transport using the in-memory cache implementation
 func NewMemoryCacheTransport() *Transport {
 	c := NewMemoryCache()

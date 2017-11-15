@@ -33,8 +33,15 @@ type Cache interface {
 	// Get returns the []byte representation of a cached response and a bool
 	// set to true if the value isn't empty
 	Get(key string) (responseBytes []byte, ok bool)
+	// GetStream returns the io.Reader representation of a cached response and a bool
+	// set to true if the value isn't empty
+	GetStream(key string) (responseBytes io.Reader, ok bool)
+
 	// Set stores the []byte representation of a response against a key
 	Set(key string, responseBytes []byte)
+	// SetStream returns a io.WriteCloser to be used for writing to a key.
+	SetStream(key string) io.WriteCloser
+
 	// Delete removes the value associated with the key
 	Delete(key string)
 }

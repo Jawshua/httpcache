@@ -81,11 +81,43 @@ func (c *MemoryCache) Get(key string) (resp []byte, ok bool) {
 	return resp, ok
 }
 
+// GetStream returns the io.Reader representation of the response and true if present, false if not
+func (c *MemoryCache) GetStream(key string) (resp io.Reader, ok bool) {
+	c.mu.RLock()
+	data, ok := c.items[key]
+	c.mu.RUnlock()
+	if !ok {
+		return nil, ok
+	}
+
+	resp = bytes.NewReader(data)
+	return resp, ok
+}
+
 // Set saves response resp to the cache with key
 func (c *MemoryCache) Set(key string, resp []byte) {
 	c.mu.Lock()
 	c.items[key] = resp
 	c.mu.Unlock()
+}
+
+// SetStream returns an io.WriteCloser which will commit the contents to cache
+// upon being closed
+func (c *MemoryCache) SetStream(key string) (buf io.WriteCloser) {
+	buf = &bufferedWriteCloser{
+		closed: false,
+		OnClose: func(r io.Reader) {
+			data, err := ioutil.ReadAll(r)
+
+			if err == nil {
+				c.mu.Lock()
+				c.items[key] = data
+				c.mu.Unlock()
+			}
+		},
+	}
+
+	return buf
 }
 
 // Delete removes key from the cache
